@@ -133,6 +133,9 @@ export def OnCursorMoved()
 
   var w0 = line('w0')
   var wh = winheight(0)
+  var winpos = win_screenpos(0)
+  var win_row_offset = winpos[0] - 1
+  var win_col_offset = winpos[1] - 1
 
   for row in range(rmin, rmax + 1)
     var srow = row - w0 + 1
@@ -203,8 +206,8 @@ export def OnCursorMoved()
       endif
 
       var p = popup_create(ch, {
-        line: srow,
-        col: col,
+        line: srow + win_row_offset,
+        col: col + win_col_offset,
         highlight: HLS[lv],
         opacity: 0,
         zindex: 999,
