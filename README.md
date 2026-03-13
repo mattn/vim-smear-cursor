@@ -4,6 +4,8 @@ A Vim plugin that renders a smear trail behind the cursor as it moves, using sub
 
 ![Vim](https://img.shields.io/badge/Vim-9.0+-green)
 
+https://cdn.nostrcheck.me/2c7cc62a697ea3a7826521f3fd34f0cb273693cbe5e9310f35449f43622a5cdc/9b793347970d46d8ff46846ab88acf2dde19c3312855d22063ef2dafaaec3a13.mp4
+
 ## Requirements
 
 - **Vim 9.0+** with `vim9script` support
