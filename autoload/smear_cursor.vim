@@ -62,6 +62,9 @@ enddef
 # Sort popups by t-value (tail first) using insertion sort
 def SortByT()
   var n = len(smear_tvals)
+  if n < 2
+    return
+  endif
   for i in range(1, n - 1)
     var tv = smear_tvals[i]
     var pv = smear_popups[i]
