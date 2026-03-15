@@ -170,8 +170,8 @@ export def OnCursorMoved()
         continue
       endif
 
-      # Map coverage (1.0 at center → 0.0 at edge) to block height
-      var coverage = 1.0 - (perp / hw)
+      # Map coverage to block height: factor in both distance and trail width
+      var coverage = (1.0 - perp / hw) * (hw / HEAD_W)
       var blk_idx = float2nr(round(coverage * 7.0))
       if blk_idx < 0
         blk_idx = 0
