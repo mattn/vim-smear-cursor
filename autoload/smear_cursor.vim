@@ -1,6 +1,6 @@
 vim9script
 
-# Smear Cursor for Vim - sub-cell rendering with 2x2 matrix characters
+# Smear Cursor for Vim - sub-cell rendering with 1/8 block characters
 # Inspired by sphamba/smear-cursor.nvim
 # Uses opacity:0 popups for transparent background
 
@@ -16,18 +16,8 @@ const ASPECT = get(g:, 'smear_cursor_aspect', 2.0)
 const HEAD_W = get(g:, 'smear_cursor_head_width', 0.9)
 const TAIL_W = get(g:, 'smear_cursor_tail_width', 0.1)
 
-# 2x2 sub-cell characters (index = TL*1 + TR*2 + BL*4 + BR*8)
-const MC = [
-  ' ', '▘', '▝', '▀',
-  '▖', '▌', '▞', '▛',
-  '▗', '▚', '▐', '▜',
-  '▄', '▙', '▟', '█',
-]
-
-# Quadrant offsets from cell center (TL, TR, BL, BR)
-const QR = [-0.25, -0.25, 0.25, 0.25]
-const QC = [-0.25, 0.25, -0.25, 0.25]
-const QBIT = [1, 2, 4, 8]
+# 1/8 block characters: height 1/8 → 8/8 (bottom-aligned)
+const EIGHTH_BLOCKS = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█']
 
 # Color gradient: head (bright) → tail (dim)
 highlight default SmearLv1 guifg=#e0e0e0 guibg=NONE ctermfg=253 ctermbg=NONE
@@ -152,50 +142,45 @@ export def OnCursorMoved()
         continue
       endif
 
-      # Check 4 quadrants of this cell
-      var bits = 0
-      var t_sum = 0.0
-      var cnt = 0
+      # Project cell center onto line (aspect-corrected)
+      var cr = row * 1.0
+      var cc = col * 1.0
+      var dqr = (cr - r0) * ASPECT
+      var dqc = cc - c0
+      var t = (dqr * dra + dqc * dca) / len_sq
 
-      for qi in range(4)
-        var qr = row * 1.0 + QR[qi]
-        var qc = col * 1.0 + QC[qi]
-
-        # Project quadrant center onto line (aspect-corrected)
-        var dqr = (qr - r0) * ASPECT
-        var dqc = qc - c0
-        var t = (dqr * dra + dqc * dca) / len_sq
-
-        if t < -0.05 || t > 1.05
-          continue
-        endif
-
-        # Clamp t for width calculation
-        var ct = t < 0.0 ? 0.0 : t > 1.0 ? 1.0 : t
-
-        # Perpendicular distance from line
-        var proj_r = r0 + ct * (r1 - r0)
-        var proj_c = c0 + ct * (c1 - c0)
-        var pr = (qr - proj_r) * ASPECT
-        var pc = qc - proj_c
-        var perp = sqrt(pr * pr + pc * pc)
-
-        # Tapered half-width: thin at tail (t=0), thick at head (t=1)
-        var hw = TAIL_W + (HEAD_W - TAIL_W) * ct
-
-        if perp < hw
-          bits += QBIT[qi]
-          t_sum += ct
-          cnt += 1
-        endif
-      endfor
-
-      if bits == 0
+      if t < -0.05 || t > 1.05
         continue
       endif
 
-      var ch = MC[bits]
-      var avg_t = t_sum / cnt
+      # Clamp t for width calculation
+      var ct = t < 0.0 ? 0.0 : t > 1.0 ? 1.0 : t
+
+      # Perpendicular distance from line
+      var proj_r = r0 + ct * (r1 - r0)
+      var proj_c = c0 + ct * (c1 - c0)
+      var pr = (cr - proj_r) * ASPECT
+      var pc = cc - proj_c
+      var perp = sqrt(pr * pr + pc * pc)
+
+      # Tapered half-width: thin at tail (t=0), thick at head (t=1)
+      var hw = TAIL_W + (HEAD_W - TAIL_W) * ct
+
+      if perp >= hw
+        continue
+      endif
+
+      # Map coverage (1.0 at center → 0.0 at edge) to block height
+      var coverage = 1.0 - (perp / hw)
+      var blk_idx = float2nr(round(coverage * 7.0))
+      if blk_idx < 0
+        blk_idx = 0
+      elseif blk_idx > 7
+        blk_idx = 7
+      endif
+
+      var ch = EIGHTH_BLOCKS[blk_idx]
+      var avg_t = ct
 
       # Color level: t=1 (head) → bright, t=0 (tail) → dim
       var lv = float2nr(round((1.0 - avg_t) * (len(HLS) - 1)))
