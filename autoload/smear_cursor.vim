@@ -80,7 +80,8 @@ def SortByT()
 enddef
 
 export def OnCursorMoved()
-  var cur = [line('.'), col('.')]
+  const spos = screenpos(0, line('.'), col('.'))
+  const cur = [spos.row, spos.col]
 
   if prev_pos[0] == 0
     prev_pos = cur
@@ -120,23 +121,17 @@ export def OnCursorMoved()
   var rmax = max([prev_pos[0], cur[0]]) + margin
   var cmin = min([prev_pos[1], cur[1]]) - margin
   var cmax = max([prev_pos[1], cur[1]]) + margin
-  if cmin < 1
-    cmin = 1
-  endif
 
-  var w0 = line('w0')
-  var wh = winheight(0)
-  var winpos = win_screenpos(0)
-  var win_row_offset = winpos[0] - 1
-  var win_col_offset = winpos[1] - 1
-
-  for row in range(rmin, rmax + 1)
-    var srow = row - w0 + 1
-    if srow < 1 || srow > wh
+  for row in range(rmin, rmax)
+    if row < 1 || row > &lines
       continue
     endif
 
-    for col in range(cmin, cmax + 1)
+    for col in range(cmin, cmax)
+      if col < 1 || col > &columns
+        continue
+      endif
+
       # Skip origin and destination cells
       if row == prev_pos[0] && col == prev_pos[1]
         continue
@@ -146,18 +141,18 @@ export def OnCursorMoved()
       endif
 
       # Project cell center onto line (aspect-corrected)
-      var cr = row * 1.0
-      var cc = col * 1.0
-      var dqr = (cr - r0) * ASPECT
-      var dqc = cc - c0
-      var t = (dqr * dra + dqc * dca) / len_sq
+      const cr = row * 1.0
+      const cc = col * 1.0
+      const dqr = (cr - r0) * ASPECT
+      const dqc = cc - c0
+      const t = (dqr * dra + dqc * dca) / len_sq
 
       if t < -0.05 || t > 1.05
         continue
       endif
 
       # Clamp t for width calculation
-      var ct = t < 0.0 ? 0.0 : t > 1.0 ? 1.0 : t
+      const ct = t < 0.0 ? 0.0 : t > 1.0 ? 1.0 : t
 
       # Perpendicular distance from line
       var proj_r = r0 + ct * (r1 - r0)
@@ -168,7 +163,6 @@ export def OnCursorMoved()
 
       # Tapered half-width: thin at tail (t=0), thick at head (t=1)
       var hw = TAIL_W + (HEAD_W - TAIL_W) * ct
-
       if perp >= hw
         continue
       endif
@@ -181,12 +175,10 @@ export def OnCursorMoved()
       elseif blk_idx > 7
         blk_idx = 7
       endif
-
       var ch = EIGHTH_BLOCKS[blk_idx]
-      var avg_t = ct
 
       # Color level: t=1 (head) → bright, t=0 (tail) → dim
-      var lv = float2nr(round((1.0 - avg_t) * (len(HLS) - 1)))
+      var lv = float2nr(round((1.0 - ct) * (len(HLS) - 1)))
       if lv < 0
         lv = 0
       elseif lv >= len(HLS)
@@ -194,8 +186,8 @@ export def OnCursorMoved()
       endif
 
       var p = popup_create(ch, {
-        line: srow + win_row_offset,
-        col: col + win_col_offset,
+        line: row,
+        col: col,
         highlight: HLS[lv],
         opacity: 0,
         zindex: 999,
@@ -203,7 +195,7 @@ export def OnCursorMoved()
         fixed: true,
       })
       add(smear_popups, p)
-      add(smear_tvals, avg_t)
+      add(smear_tvals, ct)
     endfor
   endfor
 
